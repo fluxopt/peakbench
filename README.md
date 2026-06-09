@@ -1,6 +1,6 @@
 # benchkit
 
-[![CI](https://github.com/fluxopt/benchkit/actions/workflows/ci.yaml/badge.svg)](https://github.com/fluxopt/benchkit/actions/workflows/ci.yaml)
+[![CI](https://github.com/fluxopt/peakbench/actions/workflows/ci.yaml/badge.svg)](https://github.com/fluxopt/peakbench/actions/workflows/ci.yaml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 

@@ -45,5 +45,5 @@ samples = measure(cases)      # list[Sample(id, value, dims)], peak MiB via memr
 end-to-end: measure memory, time ad-hoc callables, write snapshots, then
 `compare` / `plot` them.
 
-See the [README on GitHub](https://github.com/fluxopt/benchkit) for where
+See the [README on GitHub](https://github.com/fluxopt/peakbench) for where
 benchkit sits relative to CodSpeed / ASV / pytest-benchmark.

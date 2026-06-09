@@ -24,7 +24,7 @@ all = ["benchkit[memory,plot,cli]"]
 benchkit = "benchkit.cli:app"
 
 [project.urls]
-Repository = "https://github.com/fluxopt/benchkit"
+Repository = "https://github.com/fluxopt/peakbench"
 
 [build-system]
 requires = ["hatchling"]
