@@ -3,7 +3,7 @@
 Time or memory-profile any callable, get a result object, inspect it as a
 DataFrame or drop it into a snapshot the ``plot`` / ``compare`` machinery reads::
 
-    from benchkit import bench
+    from peakbench import bench
 
     r = bench.time(build_model, 100)
     r.to_snapshot("a.json", dims={"op": "build", "subject": "basic", "n": 100})
@@ -23,8 +23,8 @@ from statistics import mean, median, stdev
 from timeit import Timer
 from typing import TYPE_CHECKING, Any, Literal
 
-from benchkit.case import DimValue
-from benchkit.snapshot import Sample, write_snapshot
+from peakbench.case import DimValue
+from peakbench.snapshot import Sample, write_snapshot
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -214,7 +214,7 @@ def memory(
     **kwargs: object,
 ) -> MemoryResult:
     """Peak-RSS profile ``fn(*args, **kwargs)`` → :class:`MemoryResult` (memray)."""
-    from benchkit.memray import measure_peak
+    from peakbench.memray import measure_peak
 
     peak = measure_peak(lambda: fn(*args, **kwargs), repeats=repeats)
     return MemoryResult(label=label or _fn_name(fn), peak_mib=peak)

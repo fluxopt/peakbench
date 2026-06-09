@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from benchkit.snapshot import (
+from peakbench.snapshot import (
     Sample,
     from_pytest_benchmark,
     load_long_df,
@@ -56,5 +56,5 @@ def test_malformed_snapshot_raises(tmp_path):
 def test_non_benchkit_snapshot_raises(tmp_path):
     f = tmp_path / "pb.json"
     f.write_text('{"benchmarks": []}')
-    with pytest.raises(ValueError, match="not a benchkit snapshot"):
+    with pytest.raises(ValueError, match="not a peakbench snapshot"):
         load_snapshot(f)

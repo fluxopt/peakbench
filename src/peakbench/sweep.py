@@ -57,7 +57,7 @@ def provision(
     copy_dir: str | Path | None = None,
     import_check: str | None = None,
     as_of: str | None = None,
-    tmp_prefix: str = "benchkit-",
+    tmp_prefix: str = "peakbench-",
 ) -> Iterator[Venv]:
     """Yield one fresh ``uv`` venv per version.
 

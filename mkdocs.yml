@@ -1,4 +1,4 @@
-site_name: benchkit
+site_name: peakbench
 site_description: Generic time + peak-memory benchmarking around a Case.
 repo_url: https://github.com/fluxopt/peakbench
 docs_dir: docs

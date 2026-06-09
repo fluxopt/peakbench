@@ -1,4 +1,4 @@
-"""benchkit CLI — ``plot`` and ``compare`` over snapshot files.
+"""peakbench CLI — ``plot`` and ``compare`` over snapshot files.
 
 These are the registry-free commands (they read JSON only). A consumer that
 wants ``run`` / ``sweep`` builds those on its own ``Case`` source.
@@ -12,15 +12,15 @@ from typing import Annotated
 
 import typer
 
-from benchkit.snapshot import discover_snapshots
+from peakbench.snapshot import discover_snapshots
 
-app = typer.Typer(help="benchkit — plot and compare benchmark snapshots.", no_args_is_help=True)
+app = typer.Typer(help="peakbench — plot and compare benchmark snapshots.", no_args_is_help=True)
 
 
 def _need_plotly() -> None:
     if importlib.util.find_spec("plotly") is None:
         typer.secho(
-            "plotting needs extras: pip install 'benchkit[plot]'",
+            "plotting needs extras: pip install 'peakbench[plot]'",
             fg=typer.colors.RED,
             err=True,
         )
@@ -53,7 +53,7 @@ def plot(
         "scaling" if len(snapshots) == 1 else "scatter" if len(snapshots) == 2 else "sweep"
     )
     _need_plotly()
-    from benchkit import plotting
+    from peakbench import plotting
 
     try:
         if chosen == "compare":
@@ -91,7 +91,7 @@ def compare(
         if not p.exists():
             typer.secho(f"missing: {p}", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=2)
-    from benchkit.compare import compare_snapshots
+    from peakbench.compare import compare_snapshots
 
     try:
         compare_snapshots(a, b)

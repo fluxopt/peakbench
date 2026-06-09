@@ -31,7 +31,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --group dev
-      - run: uv run mypy src/benchkit
+      - run: uv run mypy src/peakbench
 
   test:
     name: Test (Python ${{ matrix.python-version }})

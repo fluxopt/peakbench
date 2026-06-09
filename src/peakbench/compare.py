@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-from benchkit.snapshot import load_long_df
+from peakbench.snapshot import load_long_df
 
 
 def compare_snapshots(a: str | Path, b: str | Path, *, out: TextIO | None = None) -> None:

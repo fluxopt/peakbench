@@ -202,7 +202,7 @@ in each. Everything package-specific — the install spec, what to run — is
 injected, so it isn't tied to any one library:
 
 ```python
-from benchkit.sweep import sweep
+from peakbench.sweep import sweep
 
 failed = sweep(
     ["1.2.0", "1.3.0", "git+https://github.com/me/pkg@main"],
@@ -211,8 +211,8 @@ failed = sweep(
         cwd=venv.cwd, env=venv.env,
     ),
     install_spec=lambda v: f"mypkg=={v}",
-    copy_dir="my_benchmarks",     # copied in so it imports from here, pkg from the venv
-    import_check="mypkg",         # preflight: assert pkg resolved to the venv
+    copy_dir="my_benchmarks",  # copied in so it imports from here, pkg from the venv
+    import_check="mypkg",  # preflight: assert pkg resolved to the venv
 )
 ```
 

@@ -1,4 +1,4 @@
-"""Interactive plotly views over benchkit snapshots — dims-driven.
+"""Interactive plotly views over peakbench snapshots — dims-driven.
 
 Four views, each returning ``(figure, n_rendered)``:
 
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
-from benchkit.snapshot import load_long_df
+from peakbench.snapshot import load_long_df
 
 if TYPE_CHECKING:
     import pandas as pd

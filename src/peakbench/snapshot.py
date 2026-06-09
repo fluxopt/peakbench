@@ -3,7 +3,7 @@ tidy long-DataFrame loader.
 
 A snapshot is a list of :class:`Sample` — each an opaque ``id``, a ``value``, and
 structured ``dims`` for analysis. Nothing parses the id: structure lives in
-``dims``, which flows from :class:`~benchkit.case.Case` through ``measure`` to the
+``dims``, which flows from :class:`~peakbench.case.Case` through ``measure`` to the
 snapshot and out to the plots.
 
 On-disk shape::
@@ -11,7 +11,7 @@ On-disk shape::
     {"label": "v1", "unit": "MiB",
      "samples": [{"id": "...", "value": 18.8, "dims": {"op": "build", "n": 10}}]}
 
-``benchkit.measure`` and ``benchkit.bench`` write this natively. pytest-benchmark
+``peakbench.measure`` and ``peakbench.bench`` write this natively. pytest-benchmark
 JSON (no dims) is lifted in via :func:`from_pytest_benchmark`, which the consumer
 feeds the dims for each id.
 """
@@ -23,7 +23,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from benchkit.case import DimValue
+from peakbench.case import DimValue
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -38,7 +38,7 @@ class Sample(NamedTuple):
 
 
 def write_snapshot(path: str | Path, label: str, samples: list[Sample], unit: str) -> Path:
-    """Write ``samples`` to ``path`` as a benchkit snapshot."""
+    """Write ``samples`` to ``path`` as a peakbench snapshot."""
     data = {
         "label": label,
         "unit": unit,
@@ -50,10 +50,10 @@ def write_snapshot(path: str | Path, label: str, samples: list[Sample], unit: st
 
 
 def load_snapshot(path: str | Path) -> tuple[str, list[Sample], str]:
-    """Return ``(label, samples, unit)`` for a benchkit snapshot.
+    """Return ``(label, samples, unit)`` for a peakbench snapshot.
 
     Raises a clear, file-named :class:`ValueError` on a malformed file or one
-    that isn't the benchkit ``samples`` shape (e.g. a raw pytest-benchmark file —
+    that isn't the peakbench ``samples`` shape (e.g. a raw pytest-benchmark file —
     convert those with :func:`from_pytest_benchmark`).
     """
     try:
@@ -62,7 +62,7 @@ def load_snapshot(path: str | Path) -> tuple[str, list[Sample], str]:
         raise ValueError(f"{path}: not a readable JSON snapshot ({exc})") from exc
     if "samples" not in data or "unit" not in data:
         raise ValueError(
-            f"{path}: not a benchkit snapshot (expected 'samples' + 'unit' keys). "
+            f"{path}: not a peakbench snapshot (expected 'samples' + 'unit' keys). "
             "Convert pytest-benchmark JSON with from_pytest_benchmark()."
         )
     label = data.get("label", Path(path).stem)
@@ -82,7 +82,7 @@ def from_pytest_benchmark(
 
     ``dims_for(id)`` supplies the analysis dims for each benchmark id (the
     benchmark JSON carries none); ``metric`` picks the stat (``min`` / ``median``
-    / …). Use this to bring timing snapshots into the benchkit format.
+    / …). Use this to bring timing snapshots into the peakbench format.
     """
     p = Path(path)
     try:

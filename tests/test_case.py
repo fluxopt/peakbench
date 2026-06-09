@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from benchkit import Case, measure
+from peakbench import Case, measure
 
 memray = pytest.importorskip("memray")
 pytestmark = pytest.mark.skipif(
@@ -37,10 +37,44 @@ def test_select_filters_cases():
     assert {s.id for s in samples} == {"double[n=1000]"}
 
 
+def test_build_once_runs_setup_action_teardown():
+    from peakbench import build_once
+
+    events = []
+
+    def setup():
+        events.append("setup")
+        return [1, 2, 3]
+
+    factory = build_once(
+        setup,
+        lambda data: events.append(f"action:{sum(data)}"),
+        teardown=lambda _data: events.append("teardown"),
+    )
+    with factory() as action:
+        assert events == ["setup"]  # action not yet run, teardown not yet run
+        action()
+    assert events == ["setup", "action:6", "teardown"]
+
+
+def test_build_once_teardown_runs_on_action_error():
+    from peakbench import build_once
+
+    torn = []
+
+    def boom(_obj):
+        raise RuntimeError("nope")
+
+    factory = build_once(lambda: object(), boom, teardown=lambda _o: torn.append(True))
+    with pytest.raises(RuntimeError, match="nope"), factory() as action:
+        action()
+    assert torn == [True]
+
+
 def test_on_error_surfaces_failures():
     from contextlib import contextmanager
 
-    from benchkit import Case
+    from peakbench import Case
 
     @contextmanager
     def boom():

@@ -12,7 +12,7 @@ views bundled in.
 ## Install
 
 ```bash
-uv add benchkit              # core (stdlib only)
+uv add peakbench              # core (stdlib only)
 uv add "benchkit[all]"       # + memray, plotly/pandas/numpy, typer CLI
 ```
 
@@ -24,19 +24,21 @@ down.
 
 ```python
 from contextlib import contextmanager
-from benchkit import Case, measure
+from peakbench import Case, measure
+
 
 @contextmanager
 def to_lp_case(model, n):
-    m = model.build(n)                       # setup — not measured
-    yield lambda: m.to_file("/tmp/m.lp")     # the measured action
+    m = model.build(n)  # setup — not measured
+    yield lambda: m.to_file("/tmp/m.lp")  # the measured action
+
 
 cases = [
     Case(id=f"to_lp[n={n}]", dims={"op": "to_lp", "n": n}, run=lambda n=n: to_lp_case(model, n))
     for n in (10, 100, 1000)
 ]
 
-samples = measure(cases)      # list[Sample(id, value, dims)], peak MiB via memray
+samples = measure(cases)  # list[Sample(id, value, dims)], peak MiB via memray
 ```
 
 ## Next

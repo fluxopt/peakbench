@@ -1,17 +1,17 @@
-"""benchkit — generic time + peak-memory benchmarking around a ``Case``.
+"""peakbench — generic time + peak-memory benchmarking around a ``Case``.
 
 Light to import: only the core (``Case``, the memray engine, snapshots) is
-re-exported here. ``benchkit.plotting`` pulls numpy/plotly, ``benchkit.cli``
-pulls typer, and ``benchkit.sweep`` shells out to ``uv`` — import those
+re-exported here. ``peakbench.plotting`` pulls numpy/plotly, ``peakbench.cli``
+pulls typer, and ``peakbench.sweep`` shells out to ``uv`` — import those
 submodules directly when needed.
 """
 
 from __future__ import annotations
 
-from benchkit import bench
-from benchkit.case import Action, Case, CaseFactory, DimValue
-from benchkit.memray import measure, measure_peak
-from benchkit.snapshot import (
+from peakbench import bench
+from peakbench.case import Action, Case, CaseFactory, DimValue, build_once
+from peakbench.memray import measure, measure_peak
+from peakbench.snapshot import (
     Sample,
     from_pytest_benchmark,
     load_long_df,
@@ -26,6 +26,7 @@ __all__ = [
     "DimValue",
     "Sample",
     "bench",
+    "build_once",
     "from_pytest_benchmark",
     "load_long_df",
     "load_snapshot",

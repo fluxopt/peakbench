@@ -1,7 +1,7 @@
-"""Peak-memory measurement via ``memray`` — the core benchkit engine.
+"""Peak-memory measurement via ``memray`` — the core peakbench engine.
 
 :func:`measure_peak` runs one action under a ``memray.Tracker`` and returns the
-peak in MiB. :func:`measure` runs a stream of :class:`~benchkit.case.Case` and
+peak in MiB. :func:`measure` runs a stream of :class:`~peakbench.case.Case` and
 returns ``{id: peak}`` — each case's setup (build inputs) runs *outside* the
 tracker, so the peak reflects only the measured action.
 
@@ -18,8 +18,8 @@ import tempfile
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from benchkit.case import Action, Case
-from benchkit.snapshot import Sample
+from peakbench.case import Action, Case
+from peakbench.snapshot import Sample
 
 
 def _require_memray() -> None:

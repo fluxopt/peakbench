@@ -36,20 +36,22 @@ action, and tears down.
 
 ```python
 from contextlib import contextmanager
-from benchkit import Case, measure
+from peakbench import Case, measure
+
 
 @contextmanager
 def to_lp_case(model, n):
-    m = model.build(n)                       # setup — not measured
-    yield lambda: m.to_file("/tmp/m.lp")     # the measured action
+  m = model.build(n)  # setup — not measured
+  yield lambda: m.to_file("/tmp/m.lp")  # the measured action
+
 
 cases = [
-    Case(id=f"to_lp[n={n}]", dims={"op": "to_lp", "n": n},
-         run=lambda n=n: to_lp_case(model, n))
-    for n in (10, 100, 1000)
+  Case(id=f"to_lp[n={n}]", dims={"op": "to_lp", "n": n},
+       run=lambda n=n: to_lp_case(model, n))
+  for n in (10, 100, 1000)
 ]
 
-peaks = measure(cases)        # {id: peak_MiB}, via memray
+peaks = measure(cases)  # {id: peak_MiB}, via memray
 ```
 
 How cases are *generated* is yours — benchkit imposes only `Case`. A registry of
@@ -72,7 +74,7 @@ benchkit dictates.
 ## Install
 
 ```bash
-uv add benchkit              # core (stdlib only)
+uv add peakbench              # core (stdlib only)
 uv add "benchkit[all]"       # + memray, plotly/pandas/numpy, typer CLI
 ```
 
