@@ -1,4 +1,4 @@
-# benchkit
+# peakbench
 
 [![CI](https://github.com/fluxopt/peakbench/actions/workflows/ci.yaml/badge.svg)](https://github.com/fluxopt/peakbench/actions/workflows/ci.yaml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
@@ -10,17 +10,17 @@ built around one primitive — the `Case`.
 Its reason to exist is the gap nothing else fills cleanly: **memray-precision
 memory benchmarking** of your own code. pytest-benchmark times but can't measure
 memory; ASV's `peakmem` is coarse RSS sampling that misses numpy/C-allocation
-detail; CodSpeed covers CI. benchkit is the thin memray layer + a `Case` glue,
+detail; CodSpeed covers CI. peakbench is the thin memray layer + a `Case` glue,
 with cross-version sweeps and plotly views bundled for convenience.
 
 > **Not** a CI dashboard (use [CodSpeed]) and **not** a rigorous perf-history
 > system (use [ASV]). If your core need is *precise local memory* numbers over a
 > set of your own benchmarks — and timing/sweeps/plots in the same vocabulary —
-> that's benchkit.
+> that's peakbench.
 
 ## Where it sits
 
-| Need | Reach for | benchkit |
+| Need | Reach for | peakbench |
 |---|---|---|
 | CI regression, per-PR dashboard | **CodSpeed** | — (don't rebuild it) |
 | Local timing + A/B compare | **pytest-benchmark** | reads its JSON |
@@ -54,9 +54,9 @@ cases = [
 peaks = measure(cases)  # {id: peak_MiB}, via memray
 ```
 
-How cases are *generated* is yours — benchkit imposes only `Case`. A registry of
+How cases are *generated* is yours — peakbench imposes only `Case`. A registry of
 subjects × operations × sizes is a convenience you build on top, not something
-benchkit dictates.
+peakbench dictates.
 
 ## What's in the box
 
@@ -75,7 +75,7 @@ benchkit dictates.
 
 ```bash
 uv add peakbench              # core (stdlib only)
-uv add "benchkit[all]"       # + memray, plotly/pandas/numpy, typer CLI
+uv add "peakbench[all]"       # + memray, plotly/pandas/numpy, typer CLI
 ```
 
 ## Status

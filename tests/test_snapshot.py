@@ -53,7 +53,7 @@ def test_malformed_snapshot_raises(tmp_path):
         load_snapshot(bad)
 
 
-def test_non_benchkit_snapshot_raises(tmp_path):
+def test_non_peakbench_snapshot_raises(tmp_path):
     f = tmp_path / "pb.json"
     f.write_text('{"benchmarks": []}')
     with pytest.raises(ValueError, match="not a peakbench snapshot"):

@@ -11,19 +11,19 @@ kernelspec:
   name: python3
 ---
 
-# benchkit — walkthrough
+# peakbench — walkthrough
 
 > ⚠️ **This `.md` is the source.** It renders as docs on GitHub *and*
 > converts to a runnable notebook: `jupytext --to ipynb docs/walkthrough.md`,
 > then open `walkthrough.ipynb` in JupyterLab / PyCharm / VSCode. The
 > `.ipynb` is gitignored — edit the `.md`, re-convert.
 
-benchkit is a thin, generic layer for **time and precise peak-memory**
+peakbench is a thin, generic layer for **time and precise peak-memory**
 benchmarking, built around one primitive — the [`Case`](../README.md). This
 notebook runs the library and its CLI end-to-end: measure memory, time ad-hoc
 callables, write snapshots, then `compare` / `plot` them from the shell.
 
-Needs the extras: `uv add "benchkit[all]"` (memray + plotly/pandas + the typer
+Needs the extras: `uv add "peakbench[all]"` (memray + plotly/pandas + the typer
 CLI). Memory measurement is Linux/macOS only.
 
 ## Setup
@@ -41,7 +41,7 @@ import plotly.io as pio
 
 os.environ["FORCE_COLOR"] = "1"
 pio.renderers.default = "notebook_connected"  # load plotly.js from CDN — light pages
-_tmp = Path(tempfile.mkdtemp(prefix="benchkit-"))
+_tmp = Path(tempfile.mkdtemp(prefix="peakbench-"))
 print(f"tempdir: {_tmp}")
 ```
 
@@ -54,7 +54,7 @@ tears down. `measure` runs each case under `memray.Tracker` and returns a list o
 only the action, and each sample carries the case's `dims` for analysis.
 
 ```{code-cell} ipython3
-from benchkit import Case, measure
+from peakbench import Case, measure
 
 
 @contextmanager
@@ -73,7 +73,7 @@ measure(cases)
 ```
 
 How cases are *generated* is yours — a registry of subjects × operations × sizes
-is something you build on top. benchkit imposes only `Case`.
+is something you build on top. peakbench imposes only `Case`.
 
 ## Ad-hoc — the `bench` API
 
@@ -84,7 +84,7 @@ memray path `measure` uses. (These are *not* pytest-benchmark's calibrated timer
 — compare `bench` numbers only to other `bench` numbers.)
 
 ```{code-cell} ipython3
-from benchkit import bench
+from peakbench import bench
 
 bench.time(sorted, list(range(10_000)), rounds=5)
 ```
@@ -102,7 +102,7 @@ the file) into a tidy frame, one column per dim — the single seam every plot v
 and `compare` sits on.
 
 ```{code-cell} ipython3
-from benchkit import load_long_df
+from peakbench import load_long_df
 
 rs = bench.compare(
     {
@@ -127,7 +127,7 @@ synthesize a baseline/candidate pair across a size sweep — each `Sample` tagge
 with `op` / `n` dims, so the plots scale by `n` without ever parsing the id.
 
 ```{code-cell} ipython3
-from benchkit import Sample, write_snapshot
+from peakbench import Sample, write_snapshot
 
 SIZES = (1_000, 10_000, 100_000, 1_000_000)
 
@@ -146,24 +146,24 @@ candidate = sweep_snapshot(_tmp / "candidate.json", "candidate")
 print("wrote", baseline.name, "and", candidate.name)
 ```
 
-## CLI — `benchkit compare`
+## CLI — `peakbench compare`
 
 A per-id delta table with percent change, timing or memory auto-detected. Ids
 present in only one snapshot show `—`. (Two runs of the same code, so the deltas
 here are just measurement noise — on a real change they'd move.)
 
 ```{code-cell} ipython3
-!benchkit compare {baseline} {candidate}
+!peakbench compare {baseline} {candidate}
 ```
 
-## CLI — `benchkit plot`
+## CLI — `peakbench plot`
 
-`benchkit plot` writes an interactive plotly view to standalone HTML. The view
+`peakbench plot` writes an interactive plotly view to standalone HTML. The view
 defaults by snapshot count (1 → `scaling`, 2 → `scatter`, 3+ → `sweep`); pass
 `--view` to pick.
 
 ```{code-cell} ipython3
-!benchkit plot --view scatter {baseline} {candidate} -o {_tmp / "scatter.html"}
+!peakbench plot --view scatter {baseline} {candidate} -o {_tmp / "scatter.html"}
 ```
 
 Every view is a `plot_*` function over the same `load_long_df` seam — call them
@@ -174,7 +174,7 @@ returns `(figure, n_ids)`.
 absolute Δ. Top-right is the "slow and got slower" zone.
 
 ```{code-cell} ipython3
-from benchkit import plotting
+from peakbench import plotting
 
 plotting.plot_scatter([baseline, candidate])[0]
 ```
@@ -194,7 +194,7 @@ curve.
 plotting.plot_scaling([baseline])[0]
 ```
 
-## Cross-version sweeps — `benchkit.sweep`
+## Cross-version sweeps — `peakbench.sweep`
 
 To benchmark *across installed versions* of a package, `sweep` provisions one
 fresh `uv` venv per version (with import isolation) and calls your `run` callback
@@ -216,5 +216,5 @@ failed = sweep(
 )
 ```
 
-Point `benchkit plot` (default view: `sweep`, a log₂ fold-change heatmap) at the
+Point `peakbench plot` (default view: `sweep`, a log₂ fold-change heatmap) at the
 per-version JSONs it produces and you get the cross-version picture.

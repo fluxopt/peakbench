@@ -1,11 +1,11 @@
-# benchkit
+# peakbench
 
 A small, generic toolkit for **time and precise peak-memory** benchmarking,
 built around one primitive — the `Case`.
 
 Its reason to exist is the gap nothing else fills cleanly: **memray-precision
 memory benchmarking** of your own code. pytest-benchmark times but can't measure
-memory; ASV's `peakmem` is coarse RSS sampling; CodSpeed covers CI. benchkit is
+memory; ASV's `peakmem` is coarse RSS sampling; CodSpeed covers CI. peakbench is
 the thin memray layer plus `Case` glue, with cross-version sweeps and plotly
 views bundled in.
 
@@ -13,7 +13,7 @@ views bundled in.
 
 ```bash
 uv add peakbench              # core (stdlib only)
-uv add "benchkit[all]"       # + memray, plotly/pandas/numpy, typer CLI
+uv add "peakbench[all]"       # + memray, plotly/pandas/numpy, typer CLI
 ```
 
 ## The primitive
@@ -48,4 +48,4 @@ end-to-end: measure memory, time ad-hoc callables, write snapshots, then
 `compare` / `plot` them.
 
 See the [README on GitHub](https://github.com/fluxopt/peakbench) for where
-benchkit sits relative to CodSpeed / ASV / pytest-benchmark.
+peakbench sits relative to CodSpeed / ASV / pytest-benchmark.
