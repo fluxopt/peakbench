@@ -12,16 +12,24 @@ B/KiB/MiB/GiB), the worst peak across repeats, and the allocation count.
     res = measure_memory(lambda: build_model(1000), repeats=5)
     res.peak_bytes, res.allocations, res.total_bytes        # mirror `memray stats`
 
-Why memray and not RSS sampling: peak RSS (what ASV's ``peakmem`` and naive
-samplers use) misses the numpy/C-allocation detail that's usually the point of
-profiling a numeric library, and folds in interpreter baseline. memray's
-``peak_memory`` tracks the allocator directly.
+Two measurement modes (``measure_memory(..., mode=...)``):
+
+- ``heap`` (default) — memray allocator demand, in-process. Byte-exact, Python-only;
+  the right tool for "where does my allocation peak". memray's ``peak_memory`` tracks
+  the allocator directly, so unlike sampled RSS it doesn't miss the numpy/C detail or
+  fold in interpreter baseline.
+- ``rss`` — kernel resident high-water (``ru_maxrss``) of the workload run in a forked
+  child. Page-granular and includes the runtime, but it's the uniform, language-agnostic
+  *capacity* number, and — being a kernel high-water, not sampled — it can't miss a spike
+  the way a polling sampler (ASV ``peakmem``, psutil) does. See :func:`_measure_rss`.
 """
 
 from __future__ import annotations
 
 import gc
+import os
 import platform
+import signal
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -48,21 +56,38 @@ class MemoryResult(NamedTuple):
     allocations: int
     total_bytes: int
     repeats: int
-    #: Which metric produced this blob — ``"heap"`` (memray allocator demand) today;
-    #: ``"rss"`` (kernel resident high-water) is a separate, *incomparable* metric the
-    #: readers refuse to co-plot with ``heap``. Older blobs lacking it read as ``"heap"``.
+    #: Which metric produced this blob — ``"heap"`` (memray allocator demand) or ``"rss"``
+    #: (kernel resident high-water). They are *incomparable* metrics (allocator bytes vs
+    #: resident pages), so the readers refuse to co-plot them. Older blobs lacking it read
+    #: as ``"heap"``.
     mode: str = "heap"
+    #: rss-only: the forked no-op child's resident floor (bytes) subtracted to get
+    #: :attr:`peak_net_bytes`. ``0`` for heap. See :func:`_measure_rss`.
+    baseline_bytes: int = 0
+    #: rss-only: peak resident bytes above the baseline — the workload's marginal cost.
+    #: ``0`` for heap.
+    peak_net_bytes: int = 0
 
     def as_dict(self) -> dict[str, Any]:
-        """The JSON blob stored under pytest-benchmark ``extra_info["benchmem"]``."""
-        return {
+        """The JSON blob stored under pytest-benchmark ``extra_info["benchmem"]``.
+
+        Mode-specific: ``heap`` carries memray's churn fields (``allocations`` /
+        ``total_bytes``); ``rss`` carries the baseline/net pair instead — each mode
+        only writes the fields it actually measures.
+        """
+        common = {
             "peak_bytes": self.peak_bytes,
             "peak_bytes_max": self.peak_bytes_max,
-            "allocations": self.allocations,
-            "total_bytes": self.total_bytes,
             "repeats": self.repeats,
             "mode": self.mode,
         }
+        if self.mode == "rss":
+            return {
+                **common,
+                "baseline_bytes": self.baseline_bytes,
+                "peak_net_bytes": self.peak_net_bytes,
+            }
+        return {**common, "allocations": self.allocations, "total_bytes": self.total_bytes}
 
 
 def _require_memray() -> None:
@@ -112,13 +137,24 @@ def _track_once(action: Action) -> tuple[int, int, int]:
         )
 
 
-def measure_memory(action: Action, repeats: int = 1) -> MemoryResult:
-    """Run ``action()`` under ``memray.Tracker`` ``repeats`` times → :class:`MemoryResult`.
+def measure_memory(action: Action, repeats: int = 1, *, mode: str = "heap") -> MemoryResult:
+    """Measure ``action()`` ``repeats`` times → :class:`MemoryResult`, dispatched by ``mode``.
 
-    Each repeat gets a fresh tracker; the representative peak is the minimum across
-    repeats (see :class:`MemoryResult`), with the allocation count and total bytes
-    taken from that same min-peak run.
+    - ``heap`` (default) — memray allocator demand, in-process; byte-exact, Python-only.
+    - ``rss`` — kernel resident high-water of the workload run in a forked child; the
+      uniform, language-agnostic capacity number (page-granular). See :func:`_measure_rss`.
+
+    Both report the *minimum* peak across repeats (see :class:`MemoryResult`).
     """
+    if mode == "heap":
+        return _measure_heap(action, repeats)
+    if mode == "rss":
+        return _measure_rss(action, repeats)
+    raise ValueError(f"unknown memory mode {mode!r}; use 'heap' or 'rss'")
+
+
+def _measure_heap(action: Action, repeats: int = 1) -> MemoryResult:
+    """Heap engine (memray): each repeat gets a fresh tracker; min-peak is representative."""
     _require_memray()
 
     runs: list[tuple[int, int, int]] = []
@@ -134,6 +170,111 @@ def measure_memory(action: Action, repeats: int = 1) -> MemoryResult:
         allocations=rep[1],
         total_bytes=rep[2],
         repeats=len(runs),
+        mode="heap",
+    )
+
+
+# --- rss engine: kernel resident high-water via a forked child --------------------
+
+
+def _require_rss() -> None:
+    """Raise if the rss engine can't run — it needs ``os.fork`` (POSIX: Linux/macOS)."""
+    if not hasattr(os, "fork") or not hasattr(os, "wait4"):
+        raise RuntimeError(
+            f"the 'rss' memory mode needs os.fork/os.wait4 (POSIX: Linux/macOS); "
+            f"not available on {platform.system()}. Use mode='heap', or run on Linux/macOS."
+        )
+
+
+def _maxrss_bytes(ru_maxrss: int) -> int:
+    """Normalize ``getrusage`` ``ru_maxrss`` to bytes — Linux reports KiB, macOS bytes."""
+    return ru_maxrss * 1024 if platform.system() == "Linux" else ru_maxrss
+
+
+def _noop() -> None:  # the baseline workload — a child that allocates nothing
+    pass
+
+
+def _rss_child_gross(action: Action) -> int:
+    """Run ``action`` in a forked child; return that child's peak RSS (bytes) via ``wait4``.
+
+    ``gc.freeze()`` before the fork moves existing objects to the permanent generation
+    the child's (still-enabled) collector won't scan — so the child can't COW-dirty the
+    inherited heap and inflate its RSS. ``ru_maxrss`` is per-child (``wait4``), and is
+    populated even if the child dies; a non-clean exit raises (the action failed).
+    """
+    gc.collect()
+    gc.freeze()
+    r_fd, w_fd = os.pipe()  # child → parent channel for a failure traceback
+    pid = os.fork()
+    if pid == 0:  # CHILD — GC stays on; freeze already spared the inherited heap
+        os.close(r_fd)
+        try:
+            action()
+        except BaseException:
+            import contextlib
+            import traceback
+
+            with contextlib.suppress(OSError):
+                os.write(w_fd, traceback.format_exc().encode("utf-8", "replace")[:8192])
+            os._exit(70)  # distinct from a kernel SIGKILL
+        os._exit(0)
+    # PARENT
+    os.close(w_fd)
+    err = bytearray()
+    while chunk := os.read(r_fd, 4096):
+        err += chunk
+    os.close(r_fd)
+    _, status, ru = os.wait4(pid, 0)
+    gc.unfreeze()
+    if os.WIFSIGNALED(status):
+        sig = os.WTERMSIG(status)
+        hint = " — likely ran the machine out of memory" if sig == signal.SIGKILL else ""
+        raise RuntimeError(
+            f"the benchmarked action was killed by signal {sig} during rss measurement{hint}."
+        )
+    if os.WEXITSTATUS(status) != 0:
+        detail = err.decode("utf-8", "replace").strip()
+        raise RuntimeError(
+            "the benchmarked action raised during rss measurement:\n" + detail
+            if detail
+            else f"the benchmarked action exited with status {os.WEXITSTATUS(status)}."
+        )
+    return _maxrss_bytes(ru.ru_maxrss)
+
+
+def _noop_baseline(samples: int = 3) -> int:
+    """The child's resident *floor* — a forked no-op child's peak RSS, min over a few.
+
+    Subtracted from the workload's gross to isolate its marginal cost. Measured the same
+    way as the workload (a forked child) on purpose: a forked child's RSS counts only the
+    pages it touches *post-fork*, not the full inherited copy-on-write set, so the parent's
+    own RSS would over-subtract. (Validated empirically; see the rss design issue.)
+    """
+    return min(_rss_child_gross(_noop) for _ in range(max(1, samples)))
+
+
+def _measure_rss(action: Action, repeats: int = 1) -> MemoryResult:
+    """RSS engine: fork per repeat, read each child's peak RSS, report min gross + net.
+
+    ``peak_bytes`` is the gross resident high-water (what the kernel provisions — the
+    capacity/OOM-relevant number); ``peak_net_bytes`` is gross minus the no-op child
+    :func:`_noop_baseline` (the workload's marginal cost). Min across repeats; the worst
+    gross is kept in ``peak_bytes_max`` so callers can see the spread.
+    """
+    _require_rss()
+    baseline = _noop_baseline()
+    grosses = [_rss_child_gross(action) for _ in range(max(1, repeats))]
+    gross = min(grosses)
+    return MemoryResult(
+        peak_bytes=gross,
+        peak_bytes_max=max(grosses),
+        allocations=0,
+        total_bytes=0,
+        repeats=len(grosses),
+        mode="rss",
+        baseline_bytes=baseline,
+        peak_net_bytes=max(0, gross - baseline),
     )
 
 
