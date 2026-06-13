@@ -60,6 +60,15 @@ specific tests only, or `pedantic` control.) Set `@pytest.mark.benchmem(repeats=
 on a test to measure it `N` times and keep the min (peak memory is noisy — GC
 timing, lazy imports, page cache — so min-of-N is the cleanest floor).
 
+> **Your benchmark must be safe to re-run.** Memory is measured on an *extra,
+> separate* invocation, after pytest-benchmark has already called your function
+> many times for timing — the memray pass is effectively the next call, not the
+> first. So if the benchmarked code has side effects (mutates a shared fixture,
+> fills a cache, drains an iterator, writes a file), the recorded peak reflects
+> that already-warmed state, not a cold run — silently. Benchmark a pure call,
+> or use the `benchmark_memory` fixture's `pedantic` form with a `setup` that
+> rebuilds fresh state before each measured call.
+
 ## Reading it back
 
 Timing rides pytest-benchmark's own tooling (`pytest-benchmark compare`,
