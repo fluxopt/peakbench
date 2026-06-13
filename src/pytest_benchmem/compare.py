@@ -13,7 +13,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from pytest_benchmem.snapshot import (
     Metric,
@@ -162,17 +162,55 @@ def _read_field(path: str | Path, field: str) -> dict[str, float]:
     return {s.id: s.value for s in samples}
 
 
+def _regressions_for(
+    base: dict[str, float], head: dict[str, float], th: Threshold
+) -> list[Regression]:
+    """Shared core: ids in both maps whose value grew past ``th`` (growth only)."""
+    out: list[Regression] = []
+    for test_id in sorted(base.keys() & head.keys()):
+        vb, vh = base[test_id], head[test_id]
+        grew = vh - vb
+        if grew <= 0:
+            continue
+        over = (vb > 0 and grew / vb * 100 > th.limit) if th.is_pct else grew > th.limit
+        if over:
+            out.append(Regression(th.field, test_id, vb, vh))
+    return out
+
+
 def find_regressions(a: str | Path, b: str | Path, thresholds: list[Threshold]) -> list[Regression]:
     """Ids in both runs whose field grew past a threshold (only growth counts)."""
     regressions: list[Regression] = []
     for th in thresholds:
         base, head = _read_field(a, th.field), _read_field(b, th.field)
-        for test_id in sorted(base.keys() & head.keys()):
-            vb, vh = base[test_id], head[test_id]
-            grew = vh - vb
-            if grew <= 0:
-                continue
-            over = (vb > 0 and grew / vb * 100 > th.limit) if th.is_pct else grew > th.limit
-            if over:
-                regressions.append(Regression(th.field, test_id, vb, vh))
+        regressions.extend(_regressions_for(base, head, th))
+    return regressions
+
+
+#: Memory-blob key per fail-on field — the fields ``--benchmark-memory-compare-fail`` gates on.
+_BLOB_FIELD = {"peak": "peak_bytes", "allocations": "allocations"}
+
+
+def memory_regressions(
+    base_blobs: dict[str, dict[str, Any]],
+    head_blobs: dict[str, dict[str, Any]],
+    thresholds: list[Threshold],
+) -> list[Regression]:
+    """Regressions between two ``{id: benchmem-blob}`` maps (for the inline gate).
+
+    Only ``peak`` / ``allocations`` are supported — timing is pytest-benchmark's
+    own ``--benchmark-compare-fail``. Raises on an out-of-scope field.
+    """
+    regressions: list[Regression] = []
+    for th in thresholds:
+        if th.field not in _BLOB_FIELD:
+            allowed = " or ".join(_BLOB_FIELD)
+            raise ValueError(
+                f"--benchmark-memory-compare-fail can't gate on {th.field!r}; use {allowed} "
+                f"(timing is pytest-benchmark's own --benchmark-compare-fail)"
+            )
+        key = _BLOB_FIELD[th.field]
+        base = {i: float(b[key]) for i, b in base_blobs.items() if key in b}
+        head = {i: float(h[key]) for i, h in head_blobs.items() if key in h}
+        regressions.extend(_regressions_for(base, head, th))
     return regressions

@@ -273,7 +273,7 @@ def _remove_auto_memory() -> None:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Register the ``--benchmark-memory`` flag."""
+    """Register the ``--benchmark-memory`` flags."""
     group = parser.getgroup("pytest-benchmem", "peak-memory benchmarking")
     group.addoption(
         "--benchmark-memory",
@@ -281,6 +281,24 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Record peak memory (memray) for every benchmark() call, "
         "not only benchmark_memory — no test changes needed.",
+    )
+    group.addoption(
+        "--benchmark-memory-compare",
+        action="store",
+        nargs="?",
+        default=False,
+        const=True,
+        metavar="REF",
+        help="Compare this run's peak memory against a prior saved run "
+        "(pytest-benchmark storage ref like 0001, or the latest if no value); "
+        "prints a per-id memory delta in the summary.",
+    )
+    group.addoption(
+        "--benchmark-memory-compare-fail",
+        action="append",
+        metavar="FIELD:THRESHOLD",
+        help="Fail the session on a memory regression (repeatable): "
+        "peak:10% / peak:5MiB / allocations:5%. Implies --benchmark-memory-compare.",
     )
 
 
@@ -298,3 +316,126 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_unconfigure(config: pytest.Config) -> None:
     """Restore the stock ``benchmark`` fixture after the session."""
     _remove_auto_memory()
+
+
+# --- --benchmark-memory-compare[-fail]: inline memory gating ---------------------
+
+
+class MemoryRegression(Exception):
+    """Raised from the terminal summary to fail a run on a memory regression."""
+
+
+def _compare_requested(config: pytest.Config) -> tuple[object, list[str]]:
+    """``(compare_ref, fail_exprs)`` — ``compare_ref`` is False/True/str; fail implies compare."""
+    compare = config.getoption("--benchmark-memory-compare")
+    fail_exprs = config.getoption("--benchmark-memory-compare-fail") or []
+    if fail_exprs and compare is False:
+        compare = True  # --…-fail with no explicit --…-compare means compare against latest
+    return compare, fail_exprs
+
+
+def _memory_blobs(benchmarks: Any) -> dict[str, dict[str, Any]]:
+    """``{fullname: benchmem-blob}`` for the benchmarks that recorded memory."""
+    blobs: dict[str, dict[str, Any]] = {}
+    for bm in benchmarks:
+        extra = getattr(bm, "extra_info", None)
+        blob = extra.get(BENCHMEM_KEY) if isinstance(extra, Mapping) else None
+        if isinstance(blob, Mapping):
+            blobs[bm.fullname] = dict(blob)
+    return blobs
+
+
+def _load_baseline(storage: Any, compare: object) -> tuple[str | None, dict[str, dict[str, Any]]]:
+    """Resolve a baseline via pytest-benchmark storage → ``(label, {id: blob})``.
+
+    Mirrors pytest-benchmark's own ref handling: ``True`` → the latest run, a
+    string → runs matching that ref (the most recent wins).
+    """
+    loaded = list(storage.load()) if compare is True else list(storage.load(compare))
+    if not loaded:
+        return None, {}
+    path, data = loaded[-1]
+    blobs: dict[str, dict[str, Any]] = {}
+    for bench in data.get("benchmarks", []):
+        blob = bench.get("extra_info", {}).get(BENCHMEM_KEY)
+        if isinstance(blob, Mapping):
+            blobs[bench["fullname"]] = dict(blob)
+    return str(path), blobs
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Snapshot the comparison baseline *before* this run is saved (no self-compare)."""
+    config = session.config
+    compare, fail_exprs = _compare_requested(config)
+    if compare is False and not fail_exprs:
+        return
+    bs = getattr(config, "_benchmarksession", None)
+    if bs is None:  # pytest-benchmark not active for this run
+        return
+    try:
+        label, blobs = _load_baseline(bs.storage, compare)
+    except Exception as exc:  # noqa: BLE001 — storage problems shouldn't crash the session
+        label, blobs = None, {}
+        bs.logger.warning(f"benchmem: could not load comparison baseline ({exc}).")
+    config._benchmem_baseline = (label, blobs)  # type: ignore[attr-defined]
+
+
+def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> None:
+    """Print the memory comparison and fail the run if a threshold is exceeded."""
+    compare, fail_exprs = _compare_requested(config)
+    if compare is False and not fail_exprs:
+        return
+
+    from pytest_benchmem.compare import (
+        _BLOB_FIELD,
+        Regression,
+        memory_regressions,
+        parse_threshold,
+    )
+    from pytest_benchmem.snapshot import human_bytes
+
+    thresholds = []
+    if fail_exprs:
+        try:
+            thresholds = [parse_threshold(expr) for expr in fail_exprs]
+        except ValueError as exc:
+            raise pytest.UsageError(str(exc)) from exc
+        bad = [t.field for t in thresholds if t.field not in _BLOB_FIELD]
+        if bad:
+            raise pytest.UsageError(
+                f"--benchmark-memory-compare-fail can't gate on {', '.join(bad)}; "
+                f"use {' or '.join(_BLOB_FIELD)} "
+                f"(timing is pytest-benchmark's --benchmark-compare-fail)"
+            )
+
+    bs = getattr(config, "_benchmarksession", None)
+    current = _memory_blobs(bs.benchmarks) if bs is not None else {}
+    default: tuple[str | None, dict[str, dict[str, Any]]] = (None, {})
+    label, baseline = getattr(config, "_benchmem_baseline", default)
+
+    write = terminalreporter.write_line
+    if not current:
+        write(
+            "benchmem-compare: no memory recorded this run "
+            "(use benchmark_memory or --benchmark-memory)."
+        )
+        return
+    if not baseline:
+        write("benchmem-compare: no prior run with memory to compare against.")
+        return
+
+    write(f"\nMemory vs {label} (peak):")
+    for test_id in sorted(current.keys() & baseline.keys()):
+        vb = float(baseline[test_id].get("peak_bytes", "nan"))
+        vh = float(current[test_id].get("peak_bytes", "nan"))
+        pct = f"{(vh - vb) / vb * 100:+.1f}%" if vb > 0 else "—"
+        short = test_id.split("::")[-1]
+        write(f"  {short}: {human_bytes(vb)} → {human_bytes(vh)} ({pct})")
+
+    if thresholds:
+        regressions: list[Regression] = memory_regressions(baseline, current, thresholds)
+        if regressions:
+            write("Memory regressions over threshold:")
+            for reg in regressions:
+                write(reg.format())
+            raise MemoryRegression(f"{len(regressions)} memory regression(s) over threshold.")

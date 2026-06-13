@@ -151,3 +151,59 @@ def test_benchmem_marker_is_registered(pytester):
         "--benchmark-only", "--strict-markers", "-p", "no:cacheprovider"
     )
     result.assert_outcomes(passed=1)
+
+
+# --- inline --benchmark-memory-compare[-fail] ------------------------------------
+
+_SMALL = "def test_m(benchmark_memory):\n    benchmark_memory(lambda: [0] * 100_000)\n"
+_BIG = "def test_m(benchmark_memory):\n    benchmark_memory(lambda: [0] * 6_000_000)\n"
+
+
+def _run_compare(pytester, body, storage, *extra):
+    pytester.makepyfile(body)
+    return pytester.runpytest_subprocess(
+        "--benchmark-only",
+        f"--benchmark-storage={storage}",
+        "-p",
+        "no:cacheprovider",
+        *extra,
+    )
+
+
+def test_memory_compare_fails_on_regression(pytester):
+    """A big candidate vs a small saved baseline trips --benchmark-memory-compare-fail."""
+    storage = str(pytester.path / "store")
+    base = _run_compare(pytester, _SMALL, storage, "--benchmark-autosave")
+    base.assert_outcomes(passed=1)
+
+    cand = _run_compare(
+        pytester, _BIG, storage, "--benchmark-memory-compare-fail=peak:10%"
+    )  # fail implies compare-against-latest; ~48MB vs ~0.8MB is well over 10%
+    assert cand.ret != 0
+    cand.stdout.fnmatch_lines(["*Memory regressions over threshold*"])
+
+
+def test_memory_compare_passes_within_threshold(pytester):
+    """Re-running the same small suite stays within a generous threshold → exit 0."""
+    storage = str(pytester.path / "store")
+    base = _run_compare(pytester, _SMALL, storage, "--benchmark-autosave")
+    base.assert_outcomes(passed=1)
+
+    cand = _run_compare(
+        pytester,
+        _SMALL,
+        storage,
+        "--benchmark-memory-compare",
+        "--benchmark-memory-compare-fail=peak:50%",
+    )
+    assert cand.ret == 0
+    cand.stdout.fnmatch_lines(["*Memory vs*"])  # the comparison table prints
+
+
+def test_memory_compare_rejects_time_field(pytester):
+    """--benchmark-memory-compare-fail gates memory only; time points back to pytest-benchmark."""
+    storage = str(pytester.path / "store")
+    _run_compare(pytester, _SMALL, storage, "--benchmark-autosave").assert_outcomes(passed=1)
+    cand = _run_compare(pytester, _SMALL, storage, "--benchmark-memory-compare-fail=time:5%")
+    assert cand.ret != 0
+    cand.stderr.fnmatch_lines(["*can't gate on time*"])
