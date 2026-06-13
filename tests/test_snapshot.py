@@ -129,6 +129,17 @@ def test_memory_from_pytest_benchmark_reads_blob(tmp_path):
     assert [(s.id, s.value) for s in samples] == [("a", 19_700_000.0)]
 
 
+def test_metric_memory_is_alias_for_peak(tmp_path):
+    pb = _pb_file(
+        tmp_path,
+        [{"fullname": "a", "stats": {"min": 0.1}, "extra_info": {"benchmem": _blob(19_700_000)}}],
+    )
+    _l, peak, unit_peak = load_samples(pb, metric="peak")
+    _l, mem, unit_mem = load_samples(pb, metric="memory")
+    assert unit_mem == unit_peak == "B"
+    assert [s.value for s in mem] == [s.value for s in peak] == [19_700_000.0]
+
+
 def test_memory_reads_allocations_field(tmp_path):
     pb = _pb_file(
         tmp_path,

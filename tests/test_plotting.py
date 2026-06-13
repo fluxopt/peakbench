@@ -24,6 +24,7 @@ def _run(path, rows, *, memory=False):
                     "peak_bytes": peak,
                     "peak_bytes_max": peak,
                     "allocations": 0,
+                    "total_bytes": peak,
                     "repeats": 1,
                 }
             }
@@ -77,6 +78,19 @@ def test_metric_memory_unit_in_title(tmp_path):
     a = _run(tmp_path / "a.json", ROWS_A, memory=True)
     fig, _n = plotting.plot_scaling([a], metric="peak")
     assert "peak" in fig.layout.title.text.lower()  # vlabel for MiB is "peak"
+
+
+def test_allocated_metric_labels_allocated(tmp_path):
+    a = _run(tmp_path / "a.json", ROWS_A, memory=True)
+    fig, _n = plotting.plot_scaling([a], metric="allocated")
+    assert "allocated" in fig.layout.title.text.lower()  # not "peak"
+    assert "peak" not in fig.layout.title.text.lower()
+
+
+def test_memory_is_alias_for_peak(tmp_path):
+    a = _run(tmp_path / "a.json", ROWS_A, memory=True)
+    fig, _n = plotting.plot_scaling([a], metric="memory")
+    assert "peak" in fig.layout.title.text.lower()  # normalized to the canonical name
 
 
 def test_scatter_needs_two_runs(tmp_path):
