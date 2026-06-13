@@ -1,6 +1,6 @@
 [project]
 name = "peakbench"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A small, generic toolkit for time + peak-memory benchmarking: define cases, get memray measurement, cross-version sweeps, and plotly views."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,6 +8,7 @@ license = "MIT"
 authors = [{ name = "Felix Bumann" }]
 keywords = ["benchmark", "memory", "memray", "performance"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
@@ -24,11 +25,17 @@ all = ["peakbench[memory,plot,cli]"]
 peakbench = "peakbench.cli:app"
 
 [project.urls]
+Homepage = "https://github.com/fluxopt/peakbench"
+Documentation = "https://fluxopt.github.io/peakbench/"
 Repository = "https://github.com/fluxopt/peakbench"
+Issues = "https://github.com/fluxopt/peakbench/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
 
 [dependency-groups]
 dev = ["ruff", "mypy", "pytest", "peakbench[all]", { include-group = "docs" }]

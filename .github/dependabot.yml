@@ -1,15 +1,34 @@
 version: 2
+
 updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+    groups:
+      linting:
+        patterns:
+          - "ruff"
+          - "mypy"
+          - "pre-commit"
+      testing:
+        patterns:
+          - "pytest*"
+      documentation:
+        patterns:
+          - "mkdocs*"
+          - "jupytext"
+          - "ipykernel"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "ci"
-
-  - package-ecosystem: "uv"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "build"
