@@ -42,6 +42,11 @@ One run, one file: each benchmark id gets `stats` (timing, from pytest-benchmark
 pytest-benchmem). The two passes never overlap, so memray's hooks cost the timing
 nothing; parametrize `params` become the dims the plots scale by.
 
+Because memory rides a *separate* invocation (after the timing passes), the
+benchmarked code must be safe to re-run — a side-effectful call records its
+already-warmed state, not a cold one. Benchmark a pure call, or use the
+`benchmark_memory` `pedantic` form with a `setup` that rebuilds fresh state.
+
 ## Next
 
 → The **[Walkthrough](walkthrough.ipynb)** runs it end-to-end: write a suite,
