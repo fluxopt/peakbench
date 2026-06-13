@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/fluxopt/pytest-benchmem/compare/v0.1.0...v0.2.0) (2026-06-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* mirror memray's metrics — add total memory allocated ([#39](https://github.com/fluxopt/pytest-benchmem/issues/39))
+* memory regression gate, @pytest.mark.benchmem, bytes blob migration ([#32](https://github.com/fluxopt/pytest-benchmem/issues/32))
+
+### Features
+
+* empirical scaling fit — report O(n^x) over a size sweep ([#36](https://github.com/fluxopt/pytest-benchmem/issues/36)) ([4bc6e46](https://github.com/fluxopt/pytest-benchmem/commit/4bc6e4683142c46c9c60765dbf1f8e39adb3388f))
+* memory regression gate, [@pytest](https://github.com/pytest).mark.benchmem, bytes blob migration ([#32](https://github.com/fluxopt/pytest-benchmem/issues/32)) ([654c582](https://github.com/fluxopt/pytest-benchmem/commit/654c582a15a8f8ef8e79a7c1d41767660d5f962a))
+* mirror memray's metrics — add total memory allocated ([#39](https://github.com/fluxopt/pytest-benchmem/issues/39)) ([0b6fad6](https://github.com/fluxopt/pytest-benchmem/commit/0b6fad6f90ef124b1c80ca368c1d4db6fe5b34af))
+
+
+### Bug Fixes
+
+* correct release-please pre-major key so feat! bumps 0.2.0 not 1.0.0 ([#41](https://github.com/fluxopt/pytest-benchmem/issues/41)) ([fac21e0](https://github.com/fluxopt/pytest-benchmem/commit/fac21e08bfaf5816f067fd78da57aa623c1b563d))
+
 ## [0.1.0](https://github.com/fluxopt/pytest-benchmem/compare/v0.1.0...v0.1.0) (2026-06-13)
 
 
