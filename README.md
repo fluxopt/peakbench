@@ -69,21 +69,24 @@ timing, lazy imports, page cache — so min-of-N is the cleanest floor).
 > or use the `benchmark_memory` fixture's `pedantic` form with a `setup` that
 > rebuilds fresh state before each measured call.
 
-### `heap` (default) — and `rss` for resident-footprint questions
+### `heap` (default) and `rss` (resident footprint)
 
-**`heap` is the metric you want for almost everything.** memray allocator demand,
-in-process, byte-exact, near-deterministic, and it sees native (numpy / C-extension)
-allocations too — not just Python objects. It's what "did my function's memory regress"
-should gate on.
+**`heap`** — memray allocator demand, in-process, byte-exact: what did your code
+*request*? The default, and the right metric for **regression detection** — precise,
+low-noise, and it sees native (numpy / C-extension) allocations, not just Python objects.
 
-**`rss` (opt-in) answers a different, narrower question:** the workload's peak
-**resident memory** (`ru_maxrss`), measured in a forked child — what the OS actually had
-to hold, *including* allocator retention and fragmentation `heap` can't show. Use it for
-**capacity** ("does this fit the CI box"); it's a kernel high-water, so unlike a polling
-sampler it can't miss a spike. Caveats worth knowing: it's page-granular, and the reported
-peak is **net** of a forked no-op baseline — so on small (≲100 MiB) workloads the number is
-dominated by interpreter/allocator overhead, not your data. `rss` earns its keep at GiB
-scale, not on a megabyte sort. Linux/macOS only.
+**`rss`** — the workload's peak **resident memory** (`ru_maxrss`), measured in a forked
+child: what the OS actually had to *hold*. It diverges from `heap` by ~15–40% on typical
+Python and in both directions — allocator/hashtable over-allocation and fragmentation push
+it *above* `heap` (a `set` or `dict` can be ~1.4× its allocated bytes), while untouched
+`mmap`'d arenas can push it *below*. Use it for **capacity** ("does this fit the box"); it's
+a kernel high-water, so unlike a polling sampler it can't miss a spike. Linux/macOS only.
+
+> ⚠️ **`rss` measures in a forked child, so it charges the workload for inputs it merely
+> *reads*.** In CPython even reading an object dirties its page (refcount bump), making it
+> resident in the child. So measure a call whose inputs are built *inside* it — or via the
+> `benchmark_memory` fixture's `pedantic` `setup` — otherwise `rss` counts inputs the code
+> only touches. `heap` is immune (it counts allocations, not touches).
 
 ```bash
 pytest --benchmark-only --benchmark-memory --benchmark-memory-mode=rss
@@ -92,7 +95,7 @@ pytest --benchmark-only --benchmark-memory --benchmark-memory-mode=rss
 ```python
 @pytest.mark.benchmem(mode="rss")    # or per-test
 def test_build(benchmark_memory):
-    benchmark_memory(build_model, 1_000_000)
+    benchmark_memory(lambda: build_model(1_000_000))   # inputs built inside the call
 ```
 
 `heap` and `rss` are different quantities (allocator bytes vs resident pages), so the

@@ -120,53 +120,73 @@ df
 
 ## Resident footprint: the `rss` mode (opt-in)
 
-Everything above used `heap` — memray's **allocator demand**, the default and the metric you
-want for "did my memory regress": byte-exact, near-deterministic, and it already sees native
-(numpy / C-extension) allocations, not just Python objects.
+Everything above used `heap` — memray's **allocator demand** (what your code *requested*):
+byte-exact, low-noise, the default, and the right metric for regression detection.
 
-`rss` is an **opt-in, different question**: the workload's peak **resident set** (`ru_maxrss`),
-measured by running it in a forked child — what the OS actually had to hold, *including*
-allocator retention and fragmentation `heap` can't show. It's for **capacity** ("does this fit
-the box"), and it's a kernel high-water, so unlike a polling sampler it can't miss a spike.
-Linux/macOS only. Pick it per test with `@pytest.mark.benchmem(mode="rss")` or for a whole run
-with `--benchmark-memory-mode=rss`:
+`rss` answers a different question: the workload's peak **resident set** (`ru_maxrss`),
+measured by running it in a forked child — what the OS actually had to *hold*, including the
+allocator/hashtable over-allocation and fragmentation `heap` can't see. It's a kernel
+high-water (so it can't miss a spike), and on typical Python it differs from `heap` by
+~15–40%, in both directions. Linux/macOS only.
+
+Here's a workload that builds a `dict` **inside** the measured call — run once per mode:
 
 ```{code-cell} ipython3
-rss_run = _tmp / "rss.json"
-!pytest {suite} --benchmark-only --benchmark-memory-mode=rss --benchmark-json={rss_run} -q -p no:cacheprovider
+idx_suite = _tmp / "test_index.py"
+idx_suite.write_text("""
+def test_build_index(benchmark_memory):
+    benchmark_memory(lambda: {f"key-{i}": i for i in range(300_000)})
+""")
+heap_json, rss_json = _tmp / "idx_heap.json", _tmp / "idx_rss.json"
+!pytest {idx_suite} --benchmark-only --benchmark-memory-mode=heap --benchmark-json={heap_json} -q -p no:cacheprovider
+!pytest {idx_suite} --benchmark-only --benchmark-memory-mode=rss  --benchmark-json={rss_json}  -q -p no:cacheprovider
 ```
 
-The headline `rss` number (`peak_bytes`) is **net** — the gross resident high-water minus a
-forked no-op baseline — with the gross (capacity) figure kept alongside:
+Same workload, the two metrics side by side — `rss` is meaningfully higher: the dict's
+allocated bytes (`heap`) vs the pages it actually occupies (`rss` net, after subtracting a
+forked no-op baseline; the gross/capacity figure is kept alongside):
 
 ```{code-cell} ipython3
 import json
 
 from pytest_benchmem import human_bytes
 
-for bench in json.loads(rss_run.read_text())["benchmarks"]:
-    blob = bench["extra_info"]["benchmem"]
-    print(
-        f"{bench['name']:<18} net={human_bytes(blob['peak_bytes'])}  "
-        f"gross={human_bytes(blob['gross_bytes'])}  (baseline {human_bytes(blob['baseline_bytes'])})"
-    )
+hb = json.loads(heap_json.read_text())["benchmarks"][0]["extra_info"]["benchmem"]
+rb = json.loads(rss_json.read_text())["benchmarks"][0]["extra_info"]["benchmem"]
+print(f"heap (allocated):    {human_bytes(hb['peak_bytes'])}")
+print(f"rss net (resident):  {human_bytes(rb['peak_bytes'])}   gross {human_bytes(rb['gross_bytes'])}")
+print(f"rss/heap = {rb['peak_bytes'] / hb['peak_bytes']:.2f}x  — allocator overhead heap can't see")
 ```
 
-> ⚠️ **Read these as a demo of the mechanism, not a sensible measurement.** This `sorted`
-> suite tops out around a few MiB — far below where `rss` is meaningful. At this scale the
-> net is dominated by interpreter/allocator overhead faulted into the fresh child, not your
-> data, and it dwarfs the `heap` peak for the *same* test. That's expected: `rss` earns its
-> keep on **GiB-scale** workloads where the baseline is noise. For a megabyte sort, use `heap`.
+### The one gotcha: build inputs *inside* the call
 
-`heap` and `rss` are different quantities wearing the same byte unit (allocator bytes vs
-resident pages), so the readers **refuse to compare or co-plot across modes** rather than
-mislead — here the heap `baseline` against the `rss` run:
+Because `rss` runs in a forked child, it charges the workload for memory it merely **reads** —
+in CPython, reading an object bumps its refcount, which dirties (so makes resident) the page it
+lives on. A call that reads a big input built *beforehand* therefore attributes that input to
+the workload, even though it allocated nothing:
+
+```{code-cell} ipython3
+from pytest_benchmem import measure_memory
+
+big = list(range(2_000_000))   # built out here — the forked child "inherits" it
+heap = measure_memory(lambda: sum(big), mode="heap").peak_bytes
+rss = measure_memory(lambda: sum(big), mode="rss").peak_bytes
+print(f"sum(inherited list)   heap={human_bytes(heap)} (allocates ~nothing)   "
+      f"rss net={human_bytes(rss)} (charged for reading it!)")
+```
+
+So build the workload's inputs inside the measured call (as the dict example does), or use the
+fixture's `pedantic` form with a `setup` that constructs them fresh each round. `heap` doesn't
+have this problem — it counts allocations, not touches.
+
+Finally, `heap` and `rss` are different quantities wearing the same byte unit, so the readers
+**refuse to compare or co-plot across modes** rather than mislead:
 
 ```{code-cell} ipython3
 from pytest_benchmem import load_long_df
 
 try:
-    load_long_df([baseline, rss_run], metric="peak")
+    load_long_df([heap_json, rss_json], metric="peak")
 except ValueError as exc:
     print(f"refused: {exc}")
 ```
