@@ -1,0 +1,12 @@
+name: rss-proto
+on:
+  push:
+    branches: ["proto/**"]
+jobs:
+  proto:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run python scratch/rss_clear_refs_proto.py
