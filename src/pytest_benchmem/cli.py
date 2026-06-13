@@ -1,9 +1,10 @@
 """pytest-benchmem CLI — ``plot`` and ``compare`` over pytest-benchmark JSON runs.
 
 Both commands read the JSON pytest-benchmark writes (``.benchmarks/…``) and pick
-a ``--metric`` (``time`` from ``stats``, ``memory`` from ``extra_info.peak_mib``).
-Timing comparison/histograms are pytest-benchmark's own job; these commands are
-the memory-aware, dims-aware views on top.
+a ``--metric`` (``time`` from ``stats``; ``peak``/``allocated``/``allocations``
+from ``extra_info.benchmem``, with ``memory`` as an alias for ``peak``). Timing
+comparison/histograms are pytest-benchmark's own job; these commands are the
+memory-aware, dims-aware views on top.
 """
 
 from __future__ import annotations
@@ -20,7 +21,10 @@ app = typer.Typer(help="pytest-benchmem — plot and compare benchmark runs.", n
 
 MetricOpt = Annotated[
     Metric,
-    typer.Option(help="Metric: time | peak | allocated | allocations (memory ones mirror memray)."),
+    typer.Option(
+        help="Metric: time | peak | allocated | allocations | memory "
+        "(alias of peak; memory ones mirror memray)."
+    ),
 ]
 
 

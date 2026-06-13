@@ -31,8 +31,12 @@ DimValue = str | int | float
 
 #: Which metric to read out of a pytest-benchmark file — the memory ones mirror
 #: ``memray stats``: ``peak`` (peak memory), ``allocated`` (total memory
-#: allocated), ``allocations`` (total allocations).
-Metric = Literal["time", "peak", "allocated", "allocations"]
+#: allocated), ``allocations`` (total allocations). ``memory`` is an alias for
+#: ``peak``.
+Metric = Literal["time", "peak", "allocated", "allocations", "memory"]
+
+#: User-facing metric aliases, normalized to a canonical name by :func:`_canonical_metric`.
+_METRIC_ALIAS = {"memory": "peak"}
 
 #: Memory metric → its blob field.
 _METRIC_FIELD = {"peak": "peak_bytes", "allocated": "total_bytes", "allocations": "allocations"}
@@ -170,10 +174,16 @@ def memory_from_pytest_benchmark(
     return p.stem, samples, unit
 
 
+def _canonical_metric(metric: str) -> str:
+    """Resolve a metric alias (e.g. ``memory`` → ``peak``) to its canonical name."""
+    return _METRIC_ALIAS.get(metric, metric)
+
+
 def load_samples(
     path: str | Path, *, metric: Metric = "time", stat: str = "min"
 ) -> tuple[str, list[Sample], str]:
     """Read one pytest-benchmark file for the chosen ``metric`` → ``(label, samples, unit)``."""
+    metric = _canonical_metric(metric)  # type: ignore[assignment]
     if metric == "time":
         return from_pytest_benchmark(path, metric=stat)
     field = _METRIC_FIELD.get(metric)

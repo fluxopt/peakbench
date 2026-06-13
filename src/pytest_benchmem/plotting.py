@@ -22,7 +22,13 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
-from pytest_benchmem.snapshot import RESERVED_COLUMNS, Metric, _as_paths, load_long_df
+from pytest_benchmem.snapshot import (
+    RESERVED_COLUMNS,
+    Metric,
+    _as_paths,
+    _canonical_metric,
+    load_long_df,
+)
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -33,10 +39,6 @@ SortMode = Literal["absolute", "relative"]
 
 #: A plot input: one path or a sequence of them (str or Path).
 Snapshots = str | Path | Sequence[str | Path]
-
-
-def _value_label(unit: str) -> str:
-    return {"s": "time", "B": "peak"}.get(unit, "value")
 
 
 def _diverging_kwargs(midpoint: float = 0.0) -> dict[str, object]:
@@ -119,7 +121,7 @@ def plot_compare(
 
     snapshots = _as_paths(snapshots)
     df_long, unit = load_long_df(snapshots[:2], metric=metric)
-    vlabel = _value_label(unit)
+    vlabel = _canonical_metric(metric)
     labels = df_long["snapshot"].drop_duplicates().tolist()
     a_label, b_label = labels[0], labels[1]
 
@@ -196,7 +198,7 @@ def plot_scatter(
         raise ValueError("scatter needs at least 2 snapshots (baseline + 1)")
 
     df_long, unit = load_long_df(snapshots, metric=metric)
-    vlabel = _value_label(unit)
+    vlabel = _canonical_metric(metric)
     labels = df_long["snapshot"].drop_duplicates().tolist()
     baseline_label = labels[0]
 
@@ -255,7 +257,7 @@ def plot_sweep(
     import plotly.express as px
 
     df_long, unit = load_long_df(snapshots, metric=metric)
-    vlabel = _value_label(unit)
+    vlabel = _canonical_metric(metric)
     versions = df_long["snapshot"].drop_duplicates().tolist()
     baseline = versions[0]
 
@@ -335,7 +337,7 @@ def plot_scaling(
 
     snapshots = _as_paths(snapshots)
     df_long, unit = load_long_df(snapshots[:1], metric=metric)
-    vlabel = _value_label(unit)
+    vlabel = _canonical_metric(metric)
     x, color, facet = _infer_roles(df_long, x, color, facet)
     df = df_long.dropna(subset=[x]).sort_values([c for c in (facet, color, x) if c])
     if df.empty:
