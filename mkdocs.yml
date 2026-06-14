@@ -16,6 +16,9 @@ theme:
     - navigation.instant
     - content.code.copy
 
+extra_css:
+  - stylesheets/extra.css
+
 nav:
   - Home: index.md
   - Getting started: getting-started.ipynb

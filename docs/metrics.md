@@ -62,7 +62,7 @@ def test_churn(benchmark_memory):
     benchmark_memory(work)
 """)
 run = _tmp / "churn.json"
-!pytest {suite} --benchmark-only --benchmark-json={run} -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={run} --benchmark-columns=min,median -q -p no:cacheprovider
 ```
 
 The same run read three ways — `peak` stays small (one list lives at a time) while

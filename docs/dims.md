@@ -52,7 +52,7 @@ def test_sort(benchmark_memory, n):
     benchmark_memory(sorted, list(range(n, 0, -1)))
 """)
 run = _tmp / "params.json"
-!pytest {suite} --benchmark-only --benchmark-json={run} -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={run} --benchmark-columns=min,median -q -p no:cacheprovider
 ```
 
 ```{code-cell} ipython3

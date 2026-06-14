@@ -47,7 +47,7 @@ def test_sort(benchmark_memory, n):
     benchmark_memory(sorted, list(range(n, 0, -1)))
 """)
 baseline, candidate = _tmp / "baseline.json", _tmp / "candidate.json"
-!pytest {suite} --benchmark-only --benchmark-json={baseline}  -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={baseline}  --benchmark-columns=min,median -q -p no:cacheprovider
 ```
 
 On a real change you'd run the suite on `main`, then on your branch. Here we just run
@@ -55,7 +55,7 @@ it twice — same code, so the deltas below are measurement noise; on a real cha
 they'd move.
 
 ```{code-cell} ipython3
-!pytest {suite} --benchmark-only --benchmark-json={candidate} -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={candidate} --benchmark-columns=min,median -q -p no:cacheprovider
 ```
 
 ## `benchmem compare` — the delta table
@@ -187,7 +187,7 @@ column per run, one row per id — the natural picture for a
 
 ```{code-cell} ipython3
 third = _tmp / "third.json"
-!pytest {suite} --benchmark-only --benchmark-json={third} -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={third} --benchmark-columns=min,median -q -p no:cacheprovider
 plotting.plot_sweep([baseline, candidate, third], metric="peak")[0]
 ```
 

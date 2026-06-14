@@ -85,7 +85,7 @@ always writes; the only difference is each entry now also carries
 
 ```{code-cell} ipython3
 baseline = _tmp / "baseline.json"
-!pytest {suite} --benchmark-only --benchmark-json={baseline} -q -p no:cacheprovider
+!pytest {suite} --benchmark-only --benchmark-json={baseline} --benchmark-columns=min,median -q -p no:cacheprovider
 ```
 
 ## Read both metrics back

@@ -1,0 +1,7 @@
+/* Widen the content column so wide notebook output — pytest-benchmark's result
+   table and legend, the live CLI --help panels — has room without overflowing.
+   Material's default is 61rem; this gives the monospace blocks breathing space
+   while keeping prose a reasonable measure. */
+.md-grid {
+  max-width: 72rem;
+}
