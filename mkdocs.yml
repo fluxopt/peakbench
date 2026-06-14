@@ -1,5 +1,6 @@
 site_name: pytest-benchmem
 site_description: The memory companion to pytest-benchmark — a memray peak-memory pass on the same test.
+site_url: https://pytest-benchmem.readthedocs.io/en/latest/
 repo_url: https://github.com/fluxopt/pytest-benchmem
 docs_dir: docs
 
@@ -49,11 +50,8 @@ plugins:
         remove_all_outputs_tags: ["hide-output"]
         remove_cell_tags: ["hide-cell"]
 
-# The five notebook pages have jupytext .md sources (getting-started.md, metrics.md,
-# dims.md, compare-plot.md, reference.md). Run `jupytext --to ipynb docs/*.md …`
-# before building (the docs workflow does this in CI); mkdocs-jupyter then executes
-# the generated .ipynb. Exclude the raw notebook sources so they aren't also served
-# as their own pages — index.md and sweeps.md are plain markdown and stay served.
+# Exclude the notebook pages' jupytext .md sources — CI converts them to .ipynb
+# (docs.yaml) and mkdocs-jupyter serves those. index.md/sweeps.md stay as markdown.
 exclude_docs: |
   getting-started.md
   metrics.md
