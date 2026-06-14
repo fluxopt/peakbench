@@ -137,4 +137,4 @@ raw function name (`to_lp` vs `test_to_lp`), set your own `phase` dim as above.
 ## Next
 
 - **[Compare & plot](compare-plot.ipynb)** — these dims become the plot axes.
-- **[Reference](reference.md)** — the readers and `load_long_df` in full.
+- **[Reference](reference.ipynb)** — the readers and `load_long_df` in full.

@@ -23,7 +23,7 @@ nav:
   - Grouping by dims: dims.ipynb
   - Compare & plot: compare-plot.ipynb
   - Cross-version sweeps: sweeps.md
-  - Reference: reference.md
+  - Reference: reference.ipynb
 
 plugins:
   - search
@@ -32,17 +32,17 @@ plugins:
       include: ["*.ipynb"]
       include_source: true
 
-# The four notebook pages have jupytext .md sources (getting-started.md, metrics.md,
-# dims.md, compare-plot.md). Run `jupytext --to ipynb docs/getting-started.md …`
+# The five notebook pages have jupytext .md sources (getting-started.md, metrics.md,
+# dims.md, compare-plot.md, reference.md). Run `jupytext --to ipynb docs/*.md …`
 # before building (the docs workflow does this in CI); mkdocs-jupyter then executes
 # the generated .ipynb. Exclude the raw notebook sources so they aren't also served
-# as their own pages — index.md, sweeps.md, and reference.md are plain markdown and
-# stay served.
+# as their own pages — index.md and sweeps.md are plain markdown and stay served.
 exclude_docs: |
   getting-started.md
   metrics.md
   dims.md
   compare-plot.md
+  reference.md
 
 markdown_extensions:
   - admonition
