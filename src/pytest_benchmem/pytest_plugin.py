@@ -31,6 +31,7 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from rich.console import Console
 
 from pytest_benchmem.memray import MemoryResult, measure_memory
 from pytest_benchmem.snapshot import BENCHMEM_KEY
@@ -301,6 +302,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Fail the session on a memory regression (repeatable): "
         "peak:10% / peak:5MiB / allocations:5%. Implies --benchmark-memory-compare.",
     )
+    group.addoption(
+        "--benchmark-memory-table",
+        action="store",
+        choices=["combined", "split"],
+        default="combined",
+        help="combined (default): fold memory into pytest-benchmark's timing table as "
+        "one table. split: leave pytest-benchmark's table and print memory separately.",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -381,10 +390,60 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     config._benchmem_baseline = (label, blobs)  # type: ignore[attr-defined]
 
 
-def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> None:
-    """Print the memory comparison and fail the run if a threshold is exceeded."""
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session: pytest.Session) -> None:
+    """In combined mode, suppress pytest-benchmark's table so we can render one of our own.
+
+    Runs ``trylast`` so pytest-benchmark's own ``pytest_sessionfinish`` (which calls
+    ``finish()`` and populates ``bs.groups``) has already run, but before its
+    ``pytest_terminal_summary`` prints — the window to set ``bs.quiet``. Only fires
+    when memory was actually recorded and no comparison was requested (the compare
+    flow keeps pytest-benchmark's table for now).
+    """
+    config = session.config
+    if config.getoption("--benchmark-memory-table") != "combined":
+        return
     compare, fail_exprs = _compare_requested(config)
+    if compare is not False or fail_exprs:
+        return
+    bs = getattr(config, "_benchmarksession", None)
+    if bs is None or not getattr(bs, "groups", None) or not _memory_blobs(bs.benchmarks):
+        return
+    bs.quiet = True  # pytest-benchmark skips its table; we print the combined one instead
+    config._benchmem_combined = True  # type: ignore[attr-defined]
+
+
+def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> None:
+    """Print the memory table — combined with timing, or folding in a baseline compare."""
+    bs = getattr(config, "_benchmarksession", None)
+    current = _memory_blobs(bs.benchmarks) if bs is not None else {}
+    write = terminalreporter.write_line
+    console = Console()
+
+    from pytest_benchmem.tables import build_run_table
+
+    # Combined mode: one table per group with pytest-benchmark's timing columns plus
+    # memory (their table was suppressed in pytest_sessionfinish).
+    if getattr(config, "_benchmem_combined", False) and bs is not None:
+        from functools import partial
+
+        from pytest_benchmem.combined import render_combined_tables
+
+        render_combined_tables(
+            bs.groups,
+            columns=bs.columns,
+            sort=bs.sort,
+            name_format=bs.name_format,
+            scale_unit=partial(config.hook.pytest_benchmark_scale_unit, config=config),
+        )
+        return
+
+    compare, fail_exprs = _compare_requested(config)
+    # No comparison requested: just the per-run table, like pytest-benchmark's own
+    # timing table — you get it by running, no flag needed.
     if compare is False and not fail_exprs:
+        if current:
+            console.print(build_run_table(current))
         return
 
     from pytest_benchmem.compare import (
@@ -393,7 +452,6 @@ def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> Non
         memory_regressions,
         parse_threshold,
     )
-    from pytest_benchmem.snapshot import human_bytes
 
     thresholds = []
     if fail_exprs:
@@ -409,12 +467,9 @@ def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> Non
                 f"(timing is pytest-benchmark's --benchmark-compare-fail)"
             )
 
-    bs = getattr(config, "_benchmarksession", None)
-    current = _memory_blobs(bs.benchmarks) if bs is not None else {}
     default: tuple[str | None, dict[str, dict[str, Any]]] = (None, {})
     label, baseline = getattr(config, "_benchmem_baseline", default)
 
-    write = terminalreporter.write_line
     if not current:
         write(
             "benchmem-compare: no memory recorded this run "
@@ -422,16 +477,13 @@ def pytest_terminal_summary(terminalreporter: Any, config: pytest.Config) -> Non
         )
         return
     if not baseline:
+        # Still show this run's memory; just note there's nothing to compare against.
+        console.print(build_run_table(current))
         write("benchmem-compare: no prior run with memory to compare against.")
         return
 
-    write(f"\nMemory vs {label} (peak):")
-    for test_id in sorted(current.keys() & baseline.keys()):
-        vb = float(baseline[test_id].get("peak_bytes", "nan"))
-        vh = float(current[test_id].get("peak_bytes", "nan"))
-        pct = f"{(vh - vb) / vb * 100:+.1f}%" if vb > 0 else "—"
-        short = test_id.split("::")[-1]
-        write(f"  {short}: {human_bytes(vb)} → {human_bytes(vh)} ({pct})")
+    # One table: this run's memory with baseline + change columns folded in.
+    console.print(build_run_table(current, baseline=baseline, baseline_label=label))
 
     if thresholds:
         regressions: list[Regression] = memory_regressions(baseline, current, thresholds)
