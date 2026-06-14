@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0](https://github.com/fluxopt/pytest-benchmem/compare/v0.2.1...v0.3.0) (2026-06-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* store memory as per-repeat series; drop peak_max and the memory alias ([#75](https://github.com/fluxopt/pytest-benchmem/issues/75))
+* drop the gross metric and the now-obsolete mode tag ([#67](https://github.com/fluxopt/pytest-benchmem/issues/67))
+
+### Features
+
+* benchmem compare --csv and --sort ([#74](https://github.com/fluxopt/pytest-benchmem/issues/74)) ([5da39dc](https://github.com/fluxopt/pytest-benchmem/commit/5da39dc1a95c28ff31e566fa0f1509adfb857e82))
+* bring compare and sweeps onto the combined-table guidelines ([#68](https://github.com/fluxopt/pytest-benchmem/issues/68)) ([0caf794](https://github.com/fluxopt/pytest-benchmem/commit/0caf7949caa30eeaf956359dd615fd4b23136848))
+* capture per-repeat memory series and report distributions via --stat ([#72](https://github.com/fluxopt/pytest-benchmem/issues/72)) ([36f8856](https://github.com/fluxopt/pytest-benchmem/commit/36f8856ed6c505cc2d97ccc3802b25990175c192))
+* let callers label snapshots, decoupling series names from filenames ([#57](https://github.com/fluxopt/pytest-benchmem/issues/57)) ([10228e1](https://github.com/fluxopt/pytest-benchmem/commit/10228e11d180105856d6e58ad05d4b964e0ab2cc))
+* one table for timing + memory (combined by default) ([#65](https://github.com/fluxopt/pytest-benchmem/issues/65)) ([2f6e8f8](https://github.com/fluxopt/pytest-benchmem/commit/2f6e8f8e0e9af74d183df03fc1ccc435bbb17b1e))
+* spread varying memory metrics into min/mean/max columns ([#76](https://github.com/fluxopt/pytest-benchmem/issues/76)) ([01377ef](https://github.com/fluxopt/pytest-benchmem/commit/01377ef6456b5f24e4844a950654c032a9c2966d))
+
+
+### Bug Fixes
+
+* compare no longer crashes when two runs share a file stem ([#64](https://github.com/fluxopt/pytest-benchmem/issues/64)) ([60d7e7b](https://github.com/fluxopt/pytest-benchmem/commit/60d7e7bad3904cb482bc9049e8498043543cb2d5))
+* hoist byte units into the header in the standalone memory table ([#73](https://github.com/fluxopt/pytest-benchmem/issues/73)) ([8ad5a73](https://github.com/fluxopt/pytest-benchmem/commit/8ad5a731b2ee513f8e35186eb42e6792905928b6))
+
+
+### Code Refactoring
+
+* drop the gross metric and the now-obsolete mode tag ([#67](https://github.com/fluxopt/pytest-benchmem/issues/67)) ([90c7045](https://github.com/fluxopt/pytest-benchmem/commit/90c7045f8420e4c208760ea2b4b0fe4ff4b86187))
+* store memory as per-repeat series; drop peak_max and the memory alias ([#75](https://github.com/fluxopt/pytest-benchmem/issues/75)) ([bc04805](https://github.com/fluxopt/pytest-benchmem/commit/bc04805d2c547c13b5dbf8bc3e99670e0864e328))
+
 ## [0.2.1](https://github.com/fluxopt/pytest-benchmem/compare/v0.2.0...v0.2.1) (2026-06-13)
 
 
