@@ -65,6 +65,11 @@ def compare_runs(
 
     df, unit = load_long_df([Path(a), Path(b)], metric=metric)
     labels = df["snapshot"].drop_duplicates().tolist()
+    if len(labels) < 2:
+        raise ValueError(
+            f"compare needs two distinct runs; both resolve to {labels[0]!r} "
+            f"(the same file given twice?). Pass two different files."
+        )
     la, lb = labels[0], labels[1]
     wide = df.pivot(index="id", columns="snapshot", values="value")
 
