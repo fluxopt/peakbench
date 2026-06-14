@@ -145,29 +145,11 @@ body[data-md-color-scheme="slate"] .jupyter-wrapper {
   --md-typeset-a-color: #38bdf8;           /* sky-400 — matches link color */
 }
 
-/* macOS-style nav items (left sidebar + right TOC): rounded pill on hover and
-   active, no harsh borders. Inspired by PyData Sphinx / Furo nav treatments. */
-.md-nav__link {
-  border-radius: 4px;
-  padding: 0.2rem 0.5rem;
-  margin: 0.05rem -0.5rem;
-  transition: background 100ms, color 100ms;
-}
-
-/* No hover-fill pill on the nav or the TOC — just the link-color shift.
-   The filled hover reads as noise on the dense sidebars. */
-.md-nav__link:hover {
-  background: transparent;
-  color: var(--md-typeset-a-color);
-}
-
+/* Nav + TOC kept flat: no pill, no hover/active background fill. The active
+   item reads via the sky link color (rebound above) and Material's own bold;
+   hover is just Material's default color shift. */
 .md-nav__link--active {
-  background: rgba(2, 132, 199, 0.10);
   font-weight: 500;
-}
-
-[data-md-color-scheme="slate"] .md-nav__link--active {
-  background: rgba(56, 189, 248, 0.14);
 }
 
 /* Material fades .md-nav__link--passed (already-scrolled-past TOC items + the
