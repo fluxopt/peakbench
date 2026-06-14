@@ -105,6 +105,7 @@ def compare_runs(
     runs: Sequence[str | Path],
     *,
     metric: Metric = "time",
+    stat: str | None = None,
     sort: str = "name",
     csv: Path | None = None,
     out: TextIO | None = None,
@@ -120,6 +121,10 @@ def compare_runs(
     ``sort`` orders the rows: ``name`` (by id), ``value`` (largest in the last run
     first), or ``change`` (biggest regression first). ``csv`` also writes the raw
     (unscaled) comparison to that path for machine consumption.
+
+    ``stat`` reports a distribution stat (``mean`` / ``median`` / ``stddev`` / …) over
+    each benchmark's per-repeat series instead of the headline value — see
+    :func:`~pytest_benchmem.snapshot.load_samples`.
     """
     from rich import box
     from rich.console import Console
@@ -130,7 +135,7 @@ def compare_runs(
 
     if sort not in _SORTS:
         raise ValueError(f"unknown --sort {sort!r}; use one of {', '.join(_SORTS)}")
-    df, unit = load_long_df([Path(r) for r in runs], metric=metric)
+    df, unit = load_long_df([Path(r) for r in runs], metric=metric, stat=stat)
     labels = df["snapshot"].drop_duplicates().tolist()
     if len(labels) < 2:  # noqa: PLR2004 — a comparison needs two sides
         raise ValueError(
@@ -152,7 +157,8 @@ def compare_runs(
     if csv is not None:
         _write_csv(wide[labels], labels, csv)
 
-    table = Table(title=f"{metric} ({unit_name or 'count'})", box=box.SIMPLE, title_justify="left")
+    heading = f"{metric} {stat}" if stat else metric
+    table = Table(title=f"{heading} ({unit_name or 'count'})", box=box.SIMPLE, title_justify="left")
     table.add_column("id", justify="left", no_wrap=True)
     for label in labels:
         table.add_column(str(label), justify="right")
